@@ -109,7 +109,7 @@ export async function testFirebaseBasic() {
     console.log("🧪 Testing basic Firebase functionality...")
     const { app, db } = await initializeFirebaseWithFallback()
 
-    if (db._type === "mock") {
+    if (isMockFirestore(db)) {
       console.log("✅ Using fallback mode - will use REST API")
       return true
     }
@@ -125,3 +125,20 @@ export async function testFirebaseBasic() {
     return false
   }
 }
+
+// Update the type checking function for mock firestore
+export function isMockFirestore(db: any): db is { _type: string; projectId: string } {
+  return db && typeof db === 'object' && '_type' in db && db._type === 'mock';
+}
+
+// Or alternatively, use a more robust type-guard approach:
+/*
+interface MockFirestore {
+  _type: string;
+  projectId: string;
+}
+
+export function isMockFirestore(db: Firestore | MockFirestore): db is MockFirestore {
+  return '_type' in db && db._type === 'mock-firestore';
+}
+*/
