@@ -1,101 +1,220 @@
-import Image from "next/image";
+"use client"
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { SidebarTrigger } from "@/components/ui/sidebar"
+import { DiagnosticChart } from "@/components/diagnostic-chart"
+import { SkinTrendChart } from "@/components/skin-trend-chart"
+import { PopularProducts } from "@/components/popular-products"
+import { Users, TrendingUp, Activity, Star, AlertCircle, RefreshCw } from "lucide-react"
+import { useEffect, useState } from "react"
+import { getDashboardStats } from "@/lib/firebase-service"
+import { useFirebase } from "@/components/firebase-provider"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Button } from "@/components/ui/button"
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+export default function Dashboard() {
+  const { isInitialized, error, isLoading: firebaseLoading, retryConnection } = useFirebase()
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    dailyUsers: 0,
+    dailyAnalyses: 0,
+    monthlyUsers: 0,
+    totalAnalyses: 0,
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function fetchStats() {
+      if (!isInitialized || firebaseLoading) return
+
+      try {
+        setLoading(true)
+        console.log("📊 Dashboard: Loading data from Firestore...")
+        const dashboardStats = await getDashboardStats()
+        setStats(dashboardStats)
+        console.log("✅ Dashboard: Data loaded successfully")
+      } catch (error) {
+        console.error("❌ Dashboard: Error loading data:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [isInitialized, firebaseLoading])
+
+  if (firebaseLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-4">
+          <SidebarTrigger />
+          <h1 className="text-3xl font-bold">Dashboard</h1>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Initializing Firebase connection...</p>
+            <p className="text-sm text-muted-foreground mt-2">Project: reme-57c1b</p>
+            <p className="text-xs text-muted-foreground mt-1">This may take a few moments</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-4">
+          <SidebarTrigger />
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+        </div>
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Firebase Connection Error</AlertTitle>
+          <AlertDescription className="mt-2">
+            <div className="space-y-3">
+              <p className="text-sm">
+                <strong>Error:</strong> {error}
+              </p>
+
+              <div className="bg-red-50 border border-red-200 rounded p-3">
+                <p className="font-semibold text-red-800 mb-2">Possible solutions:</p>
+                <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
+                  <li>Check your internet connection</li>
+                  <li>Verify that Firestore is enabled in Firebase Console</li>
+                  <li>Make sure your Firebase project is active</li>
+                  <li>Try using a different browser or incognito mode</li>
+                  <li>Clear your browser cache and cookies</li>
+                </ul>
+              </div>
+
+              <div className="flex gap-2">
+                <Button onClick={retryConnection} variant="outline" size="sm">
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry Connection
+                </Button>
+                <Button onClick={() => window.location.reload()} variant="outline" size="sm">
+                  Refresh Page
+                </Button>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center gap-4">
+          <SidebarTrigger />
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="p-6 space-y-6">
+      <div className="flex items-center gap-4">
+        <SidebarTrigger />
+        <h1 className="text-3xl font-bold">Dashboard</h1>
+      </div>
+
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">+{stats.monthlyUsers} this month</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Daily Users</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.dailyUsers}</div>
+            <p className="text-xs text-muted-foreground">Active today</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Daily Diagnostics</CardTitle>
+            <Activity className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.dailyAnalyses}</div>
+            <p className="text-xs text-muted-foreground">Analyses today</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Analyses</CardTitle>
+            <Star className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.totalAnalyses.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">All time</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Diagnostic Trends</CardTitle>
+            <CardDescription>Daily diagnostic count over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DiagnosticChart />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Skin Condition Trends</CardTitle>
+            <CardDescription>Average skin analysis scores</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SkinTrendChart />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Popular Products */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Product Recommendations</CardTitle>
+          <CardDescription>Top products from your database</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PopularProducts />
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
