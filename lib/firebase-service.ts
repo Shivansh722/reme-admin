@@ -1,6 +1,11 @@
 import type { Timestamp } from "firebase/firestore"
+import { collection, getDocs, query, limit, orderBy, startAfter, getCountFromServer } from 'firebase/firestore';
 
 const isClient = typeof window !== "undefined"
+
+// Add this import statement to get the db object
+
+// Or modify the getProducts function to use the Firebase initialization
 
 export interface User {
   id: string
@@ -15,17 +20,186 @@ export interface User {
   provider: string
 }
 
-export interface Product {
-  id: string
-  category: string
-  brand: string
-  description: string
-  productName: string
-  productUrl: string
-  imageUrl: string
-  externalUrl: string
-  tags: string[]
-  evaluationScore: number
+export type Product = {
+  id: string;
+  productName: string;
+  brand: string;
+  category: string;
+  description: string;
+  ingredients: string;
+  imageUrl: string;
+  productUrl: string;
+  externalUrl: string;
+  evaluationScore: number;
+  // Add any other fields from your Firebase collection
+};
+
+// Define return type for getProducts function
+export type ProductsResponse = {
+  products: Product[];
+  total: number;
+};
+
+export async function getProducts(page = 1, productsPerPage = 20): Promise<ProductsResponse> {
+  console.log(`Firebase query: Getting products for page ${page}, limit ${productsPerPage}`);
+  
+  if (!isClient) {
+    console.log("Server-side rendering detected, returning empty products");
+    return { products: [], total: 0 };
+  }
+  
+  try {
+    console.log("Importing initializeFirebaseWithFallback...");
+    const { initializeFirebaseWithFallback } = await import("./firebase");
+    console.log("Initializing Firebase with fallback...");
+    const { app, db } = await initializeFirebaseWithFallback();
+    console.log("Firebase initialized:", db ? "Success" : "Failed");
+    
+    // Check if we're using fallback mode
+    if (isMockFirestore(db)) {
+      console.log("🌐 Using REST API fallback for products...");
+      const documents = await fetchFromFirestoreREST("products", productsPerPage);
+      console.log(`✅ REST API: Fetched ${documents.length} products`, documents);
+      
+      // For simplicity in the REST API fallback, we'll return all fetched products
+      // without proper pagination
+      const convertedProducts = documents.map(convertFirestoreDocument) as Product[];
+      console.log("Converted products:", convertedProducts);
+      return { products: convertedProducts, total: documents.length };
+    }
+    
+    // Continue with the original implementation using the db from initializeFirebaseWithFallback
+    console.log("Using standard Firestore SDK");
+    const productsRef = collection(db, 'products');
+    console.log("Created collection reference for 'products'");
+    
+    // Get total count for pagination
+    console.log("Getting count from server...");
+    const snapshot = await getCountFromServer(productsRef);
+    const total = snapshot.data().count;
+    console.log(`Total products in collection: ${total}`);
+    
+    // Try a simple query first without any ordering or pagination
+    console.log("Trying a simple query first to check access...");
+    const simpleQuery = query(productsRef, limit(1));
+    const simpleQuerySnapshot = await getDocs(simpleQuery);
+    console.log(`Simple query returned ${simpleQuerySnapshot.docs.length} documents`);
+    
+    if (simpleQuerySnapshot.docs.length > 0) {
+      const sampleDoc = simpleQuerySnapshot.docs[0];
+      console.log("Sample document exists:", sampleDoc.id);
+      console.log("Sample document data keys:", Object.keys(sampleDoc.data()));
+      console.log("Sample product name:", sampleDoc.data().productName);
+    } else {
+      console.error("⚠️ WARNING: Simple query returned no documents despite count showing records exist");
+      console.log("Trying alternative query approach...");
+      
+      // Try without the productName ordering that might be causing issues
+      const alternativeQuery = query(productsRef, limit(productsPerPage));
+      const alternativeSnapshot = await getDocs(alternativeQuery);
+      console.log(`Alternative query returned ${alternativeSnapshot.docs.length} documents`);
+      
+      if (alternativeSnapshot.docs.length > 0) {
+        console.log("Alternative query successful, using this approach");
+        const products = alternativeSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            productName: data.productName || '',
+            brand: data.brand || '',
+            category: data.category || '',
+            description: data.description || '',
+            ingredients: data.ingredients || '',
+            imageUrl: data.imageUrl || '',
+            productUrl: data.productUrl || '',
+            externalUrl: data.externalUrl || '',
+            evaluationScore: data.evaluationScore || 0,
+          };
+        });
+        
+        console.log(`Retrieved ${products.length} products using alternative approach`);
+        return { products, total };
+      }
+    }
+    
+    if (total === 0) {
+      console.log("⚠️ Warning: No products found in the database");
+      return { products: [], total: 0 };
+    }
+
+    // Create base query
+    console.log(`Creating query for page ${page} with limit ${productsPerPage}`);
+    // Try without ordering since that might be causing issues
+    let productsQuery = query(
+      productsRef,
+      limit(productsPerPage)
+    );
+
+    // If not the first page, use startAfter with pagination
+    if (page > 1) {
+      console.log(`Getting previous page documents for pagination (page ${page})`);
+      // Get the last document from the previous page
+      const previousPageQuery = query(
+        productsRef,
+        limit((page - 1) * productsPerPage)
+      );
+      const previousPageDocs = await getDocs(previousPageQuery);
+      console.log(`Previous page query returned ${previousPageDocs.docs.length} docs`);
+      
+      if (previousPageDocs.docs.length === 0) {
+        console.log("⚠️ Warning: Previous page has no documents, returning empty result");
+        return { products: [], total };
+      }
+      
+      const lastVisibleDoc = previousPageDocs.docs[previousPageDocs.docs.length - 1];
+      console.log(`Got last visible doc with ID: ${lastVisibleDoc.id}`);
+      
+      // Apply startAfter to the query
+      productsQuery = query(
+        productsRef,
+        startAfter(lastVisibleDoc),
+        limit(productsPerPage)
+      );
+      console.log("Created pagination query with startAfter");
+    }
+
+    // Execute query
+    console.log("Executing query...");
+    const querySnapshot = await getDocs(productsQuery);
+    console.log(`Query returned ${querySnapshot.docs.length} documents`);
+    
+    // Map documents to Product objects
+    const products: Product[] = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      const product = {
+        id: doc.id,
+        // Map Japanese field names to English fields
+        productName: data['商品名'] || '',         // Product name
+        brand: data['ブランド名'] || '',           // Brand name
+        category: data['カテゴリ'] || '',          // Category
+        description: data['商品詳細'] || '',       // Product details
+        ingredients: data['成分'] || '',          // Ingredients (if available)
+        imageUrl: data['商品画像URL'] || '',       // Product image URL
+        productUrl: data['商品URL'] || '',        // Product URL
+        externalUrl: data['外部URL'] || '',        // External URL
+        evaluationScore: Number(data['評価スコア']) || 0, // Evaluation score
+      };
+      console.log(`Mapped product: ${product.id} - ${product.productName}`);
+      return product;
+    });
+
+    console.log(`Retrieved ${products.length} products for page ${page}:`, products);
+    return { products, total };
+  } catch (error) {
+    console.error("Error fetching products from Firestore:", error);
+    // Log more details about the error
+    if (error instanceof Error) {
+      console.error(`Error name: ${error.name}`);
+      console.error(`Error message: ${error.message}`);
+      console.error(`Error stack: ${error.stack}`);
+    }
+    throw error;
+  }
 }
 
 export interface SkinAnalysis {
@@ -120,68 +294,87 @@ export async function getUsers(): Promise<User[]> {
   }
 }
 
-export async function getProducts(): Promise<Product[]> {
-  if (!isClient) return []
-
-  try {
-    console.log("📊 Attempting to fetch products...")
-
-    const { initializeFirebaseWithFallback } = await import("./firebase")
-    const { app, db } = await initializeFirebaseWithFallback()
-
-    // Check if we're using fallback mode
-    if (isMockFirestore(db)) {
-      console.log("🌐 Using REST API fallback for products...")
-      const documents = await fetchFromFirestoreREST("products", 20)
-      return documents.map(convertFirestoreDocument) as Product[]
-    }
-
-    // Use normal Firestore SDK
-    const { collection, getDocs, query, limit } = await import("firebase/firestore")
-    const productsRef = collection(db, "products")
-    const snapshot = await getDocs(query(productsRef, limit(20)))
-
-    const products = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as Product[]
-
-    console.log(`✅ Successfully fetched ${products.length} products`)
-    return products
-  } catch (error) {
-    console.error("❌ Error fetching products:", error)
-    return []
-  }
-}
-
 export async function getSkinAnalyses(): Promise<SkinAnalysis[]> {
   if (!isClient) return []
 
   try {
-    console.log("📊 Attempting to fetch skin analyses...")
+    console.log("📊 Attempting to fetch all skin analyses...")
 
     const { initializeFirebaseWithFallback } = await import("./firebase")
     const { app, db } = await initializeFirebaseWithFallback()
 
     // Check if we're using fallback mode
     if (isMockFirestore(db)) {
-      console.log("🌐 Using REST API fallback for skinAnalysis...")
-      const documents = await fetchFromFirestoreREST("skinAnalysis", 20)
-      return documents.map(convertFirestoreDocument) as SkinAnalysis[]
+      console.log("🌐 Using REST API fallback for skin analyses...")
+      // For simplicity, we'll fetch users first, then their analyses
+      const users = await fetchFromFirestoreREST("users", 50)
+      
+      let allAnalyses: SkinAnalysis[] = []
+      
+      // Fetch analyses for each user
+      for (const user of users) {
+        const projectId = "reme-57c1b" // Your project ID
+        const userId = user.id
+        const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${userId}/skinAnalysis?pageSize=50`
+        
+        console.log(`🌐 Fetching skin analyses for user ${userId} via REST API...`)
+        const response = await fetch(url)
+        
+        if (response.ok) {
+          const data = await response.json()
+          const userAnalyses = (data.documents || []).map((doc: any) => ({
+            ...convertFirestoreDocument(doc),
+            userId // Add the user ID for reference
+          }))
+          allAnalyses = [...allAnalyses, ...userAnalyses]
+        }
+      }
+      
+      console.log(`✅ Successfully fetched ${allAnalyses.length} skin analyses via REST API`)
+      return allAnalyses as SkinAnalysis[]
     }
 
-    // Use normal Firestore SDK
+    // Use normal Firestore SDK, but fetch user by user to avoid collectionGroup index requirement
     const { collection, getDocs, query, orderBy, limit } = await import("firebase/firestore")
-    const analysisRef = collection(db, "skinAnalysis")
-    const snapshot = await getDocs(query(analysisRef, orderBy("timestamp", "desc"), limit(20)))
+    
+    // First get all users
+    const usersRef = collection(db, "users")
+    const usersSnapshot = await getDocs(query(usersRef, limit(50)))
+    
+    let allAnalyses: SkinAnalysis[] = []
+    
+    // Then fetch analyses for each user
+    for (const userDoc of usersSnapshot.docs) {
+      const userId = userDoc.id
+      console.log(`Fetching skin analyses for user ${userId}...`)
+      
+      const analysisRef = collection(db, `users/${userId}/skinAnalysis`)
+      // Note: We still use orderBy but it's on a specific collection path, not a collection group
+      const snapshot = await getDocs(query(analysisRef, orderBy("timestamp", "desc"), limit(20)))
+      
+      const userAnalyses = snapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          userId: userId,
+          analysisResults: data.analysisResults,
+          firmness: data.firmness,
+          pimples: data.pimples,
+          pores: data.pores,
+          redness: data.redness,
+          sagging: data.sagging,
+          skinAge: data.skinAge,
+          skinGrade: data.skinGrade,
+          imagePath: data.imagePath,
+          timestamp: data.timestamp,
+        } as SkinAnalysis
+      })
+      
+      allAnalyses = [...allAnalyses, ...userAnalyses]
+    }
 
-    const analyses = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-    })) as SkinAnalysis[]
-
-    console.log(`✅ Successfully fetched ${analyses.length} analyses`)
-    return analyses
+    console.log(`✅ Successfully fetched ${allAnalyses.length} skin analyses`)
+    return allAnalyses
   } catch (error) {
     console.error("❌ Error fetching skin analyses:", error)
     return []
