@@ -12,8 +12,9 @@ export function PopularProducts() {
     async function fetchProducts() {
       try {
         const productData = await getProducts()
-        // Sort by evaluation score and take top 5
-        const topProducts = productData.sort((a, b) => (b.evaluationScore || 0) - (a.evaluationScore || 0)).slice(0, 5)
+        // Assuming productData.products is the array of products
+        const productsArray = Array.isArray(productData) ? productData : productData.products
+        const topProducts = productsArray.sort((a, b) => (b.evaluationScore || 0) - (a.evaluationScore || 0)).slice(0, 5)
         setProducts(topProducts)
       } catch (error) {
         console.error("Error loading products:", error)

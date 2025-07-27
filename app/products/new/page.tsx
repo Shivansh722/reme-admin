@@ -8,10 +8,17 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+// If "@/components/ui/textarea" does not exist, replace with:
+// import Textarea from "@mui/material/Textarea"; // or another existing Textarea component
+
 
 import { ArrowLeft, Save } from "lucide-react"
 import { Toaster } from "@/components/ui/toaster"
 import { useToast } from "@/hooks/use-toast"
+
+import { getFirestore, collection, addDoc } from "firebase/firestore"
+import { getApp } from "firebase/app"
+import { Textarea } from "@/components/ui/textarea"
 
 
 export default function NewProductPage() {
@@ -45,12 +52,8 @@ export default function NewProductPage() {
     setIsSubmitting(true)
 
     try {
-      // Import firebase functions dynamically to avoid SSR issues
-      const { initializeFirebaseWithFallback } = await import("@/lib/firebase")
-      const { app, db } = await initializeFirebaseWithFallback()
-      
-      // Import Firestore functions
-      const { collection, addDoc } = await import("firebase/firestore")
+      // Get a properly initialized Firestore instance
+      const db = getFirestore(getApp())
       
       // Add document to Firestore
       const productsCollection = collection(db, "products")
