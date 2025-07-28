@@ -1,5 +1,8 @@
 import type { Timestamp } from "firebase/firestore"
 import { collection, getDocs, query, limit, orderBy, startAfter, getCountFromServer } from 'firebase/firestore';
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
+import { getFirestore, doc, setDoc, serverTimestamp } from "firebase/firestore"
+import { getApp } from "firebase/app"
 
 const isClient = typeof window !== "undefined"
 
@@ -722,4 +725,31 @@ export async function getUserSkinAnalysis(userId: string, analysisId: string): P
     console.error(`❌ Error fetching skin analysis ${analysisId} for user ${userId}:`, error)
     return null
   }
+}
+
+// New user registration function
+export async function createUserWithEmail({
+  email,
+  password,
+  displayName,
+}: { email: string; password: string; displayName: string }) {
+  const auth = getAuth(getApp())
+  const db = getFirestore(getApp())
+  // Create user in Firebase Auth
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+  const user = userCredential.user
+  // Optionally set display name
+  if (displayName) {
+    await updateProfile(user, { displayName })
+  }
+  // Add user doc in Firestore
+  await setDoc(doc(db, "users", user.uid), {
+    email,
+    displayName,
+    provider: "email",
+    createdAt: serverTimestamp(),
+    lastLoginAt: serverTimestamp(),
+    photoURL: null,
+  })
+  return user
 }
