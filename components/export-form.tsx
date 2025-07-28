@@ -148,13 +148,18 @@ export function ExportForm() {
             }
             
             // Convert to CSV
+            const escapeCell = (cell: any) => {
+              if (cell === null || cell === undefined) return ""
+              // Convert to string, escape quotes, remove line breaks
+              const cellStr = String(cell)
+                .replace(/"/g, '""')         // Escape double quotes
+                .replace(/[\r\n]+/g, " ")    // Replace line breaks with space
+              return `"${cellStr}"`
+            }
+
             const csvContent = [
-                headers.join(","),
-                ...rows.map(row => row.map(cell => {
-                    // Handle commas in text fields by quoting
-                    const cellStr = String(cell);
-                    return cellStr.includes(",") ? `"${cellStr}"` : cellStr;
-                }).join(","))
+              headers.map(escapeCell).join(","),
+              ...rows.map(row => row.map(escapeCell).join(","))
             ].join("\n")
             
             // Create download link
