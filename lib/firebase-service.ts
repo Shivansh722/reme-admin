@@ -1,5 +1,5 @@
 import type { Timestamp } from "firebase/firestore"
-import { collection, getDocs, query, limit, orderBy, startAfter, getCountFromServer } from 'firebase/firestore';
+import { collection, getDocs, query, limit, orderBy, startAfter, getCountFromServer, addDoc } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
 import { getFirestore, doc, setDoc, serverTimestamp } from "firebase/firestore"
 import { getApp } from "firebase/app"
@@ -29,12 +29,13 @@ export type Product = {
   brand: string;
   category: string;
   description: string;
-  ingredients: string;
   imageUrl: string;
   productUrl: string;
   externalUrl: string;
-  evaluationScore: number;
-  // Add any other fields from your Firebase collection
+  evaluationScore: number | string;
+  tags: string;
+  volumePrice: string;
+  reviewCount: string;
 };
 
 // Define return type for getProducts function
@@ -108,15 +109,17 @@ export async function getProducts(page = 1, productsPerPage = 20): Promise<Produ
           const data = doc.data();
           return {
             id: doc.id,
-            productName: data.productName || '',
-            brand: data.brand || '',
-            category: data.category || '',
-            description: data.description || '',
-            ingredients: data.ingredients || '',
-            imageUrl: data.imageUrl || '',
-            productUrl: data.productUrl || '',
-            externalUrl: data.externalUrl || '',
-            evaluationScore: data.evaluationScore || 0,
+            productName: data["商品名"] || data.productName || "",
+            brand: data["ブランド名"] || data.brand || "",
+            category: data["カテゴリ"] || data.category || "",
+            description: data["商品詳細"] || data.description || "",
+            imageUrl: data["商品画像URL"] || data.imageUrl || "",
+            productUrl: data["商品URL"] || data.productUrl || "",
+            externalUrl: data["外部URL"] || data.externalUrl || "",
+            evaluationScore: data["評価スコア"] || data.evaluationScore || "",
+            tags: data["タグ"] || data.tags || "",
+            volumePrice: data["容量・参考価格"] || data.volumePrice || "",
+            reviewCount: data["口コミ件数"] || data.reviewCount || "",
           };
         });
         
@@ -135,6 +138,7 @@ export async function getProducts(page = 1, productsPerPage = 20): Promise<Produ
     // Try without ordering since that might be causing issues
     let productsQuery = query(
       productsRef,
+      orderBy("createdAt", "desc"), // <-- Add this line
       limit(productsPerPage)
     );
 
@@ -174,21 +178,22 @@ export async function getProducts(page = 1, productsPerPage = 20): Promise<Produ
     // Map documents to Product objects
     const products: Product[] = querySnapshot.docs.map(doc => {
       const data = doc.data();
-      const product = {
+      const mapped = {
         id: doc.id,
-        // Map Japanese field names to English fields
-        productName: data['商品名'] || '',         // Product name
-        brand: data['ブランド名'] || '',           // Brand name
-        category: data['カテゴリ'] || '',          // Category
-        description: data['商品詳細'] || '',       // Product details
-        ingredients: data['成分'] || '',          // Ingredients (if available)
-        imageUrl: data['商品画像URL'] || '',       // Product image URL
-        productUrl: data['商品URL'] || '',        // Product URL
-        externalUrl: data['外部URL'] || '',        // External URL
-        evaluationScore: Number(data['評価スコア']) || 0, // Evaluation score
+        productName: data["商品名"] || data.productName || "",
+        brand: data["ブランド名"] || data.brand || "",
+        category: data["カテゴリ"] || data.category || "",
+        description: data["商品詳細"] || data.description || "",
+        imageUrl: data["商品画像URL"] || data.imageUrl || "",
+        productUrl: data["商品URL"] || data.productUrl || "",
+        externalUrl: data["外部URL"] || data.externalUrl || "",
+        evaluationScore: data["評価スコア"] || data.evaluationScore || "",
+        tags: data["タグ"] || data.tags || "",
+        volumePrice: data["容量・参考価格"] || data.volumePrice || "",
+        reviewCount: data["口コミ件数"] || data.reviewCount || "",
       };
-      console.log(`Mapped product: ${product.id} - ${product.productName}`);
-      return product;
+      console.log(`Mapped product: ${mapped.id} - ${mapped.productName}`);
+      return mapped;
     });
 
     console.log(`Retrieved ${products.length} products for page ${page}:`, products);
@@ -753,3 +758,35 @@ export async function createUserWithEmail({
   })
   return user
 }
+
+/**
+ * Adds a new product to the Firestore "products" collection.
+ * Accepts an object with Japanese field names as used in your form.
+ */
+export async function addProduct(product: Record<string, any>) {
+  if (typeof window === "undefined") {
+    console.log("[addProduct] Not running in browser, aborting.")
+    return
+  }
+
+  console.log("[addProduct] Initializing Firebase for product add...", product)
+  const { initializeFirebaseWithFallback } = await import("./firebase")
+  const { db } = await initializeFirebaseWithFallback()
+
+  if (!db || (db as any)._type === "mock") {
+    console.log("[addProduct] Firestore is not available or running in mock mode.")
+    alert("Firestore is not available or running in mock mode.")
+    return
+  }
+
+  const firestoreDb = db as import("firebase/firestore").Firestore
+
+  const { collection, addDoc, serverTimestamp } = await import("firebase/firestore")
+  const productsRef = collection(firestoreDb, "products")
+  const payload = { ...product, createdAt: serverTimestamp() }
+  console.log("[addProduct] Adding document to Firestore:", payload)
+  const docRef = await addDoc(productsRef, payload)
+  console.log("[addProduct] Document added with ID:", docRef.id)
+  return docRef.id
+}
+

@@ -8,8 +8,11 @@ import { useEffect, useState } from "react"
 import { getProducts, type Product } from "@/lib/firebase-service"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
-export function ProductTable() {
+const PLACEHOLDER_IMG = "https://via.placeholder.com/40?text=No+Image"
+
+export function ProductTable({ search, refreshKey }: { search: string, refreshKey: number }) {
   const [products, setProducts] = useState<Product[]>([])
+  const [latestProducts, setLatestProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
@@ -30,32 +33,44 @@ export function ProductTable() {
     
     async function fetchProducts() {
       setLoading(true)
-      console.log(`Fetching products from Firebase (page ${currentPage}, limit ${productsPerPage})...`)
-      
       try {
-        console.log("Calling getProducts function...")
-        const { products: productData, total } = await getProducts(currentPage, productsPerPage)
-        console.log(`Successfully fetched ${productData.length} products (page ${currentPage}/${Math.ceil(total/productsPerPage)})`)
-        
-        if (productData.length === 0) {
-          console.log("⚠️ Warning: No products returned from getProducts")
+        let productData: Product[] = []
+        let total = 0
+        if (currentPage === 1) {
+          // Fetch enough to fill latest + page
+          const { products: all, total: t } = await getProducts(1, productsPerPage + 3)
+          const latestIds = new Set(latestProducts.map(p => p.id))
+          // Remove latest 3 from the fetched list, then take the next 20
+          productData = all.filter(p => !latestIds.has(p.id)).slice(0, productsPerPage)
+          total = t
         } else {
-          console.log("First product:", productData[0])
+          const { products: paged, total: t } = await getProducts(currentPage, productsPerPage)
+          productData = paged
+          total = t
         }
-        
         setProducts(productData)
         setTotalProducts(total)
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error)
-        console.error("Error loading products:", error)
-        setError(errorMessage)
+        setError(error instanceof Error ? error.message : String(error))
       } finally {
         setLoading(false)
       }
     }
 
     fetchProducts()
-  }, [currentPage])
+  }, [currentPage, refreshKey, latestProducts])
+
+  useEffect(() => {
+    async function fetchLatest() {
+      try {
+        const { products: latest } = await getProducts(1, 3)
+        setLatestProducts(latest)
+      } catch (e) {
+        setLatestProducts([])
+      }
+    }
+    fetchLatest()
+  }, [refreshKey])
 
   const totalPages = Math.ceil(totalProducts / productsPerPage)
 
@@ -70,6 +85,21 @@ export function ProductTable() {
       setCurrentPage(currentPage + 1)
     }
   }
+
+  // Filter out latest products from paginated products
+  const latestIds = new Set(latestProducts.map(p => p.id))
+  const paginatedWithoutLatest = products.filter(p => !latestIds.has(p.id))
+
+  // Filter both lists by search
+  const q = search.trim().toLowerCase()
+  const filterFn = (product: Product) =>
+    !q ||
+    (product.productName && product.productName.toLowerCase().includes(q)) ||
+    (product.brand && product.brand.toLowerCase().includes(q)) ||
+    (product.category && product.category.toLowerCase().includes(q))
+
+  const filteredLatest = latestProducts.filter(filterFn)
+  const filteredPaginated = paginatedWithoutLatest.filter(filterFn)
 
   if (loading) {
     return (
@@ -94,7 +124,7 @@ export function ProductTable() {
     )
   }
 
-  if (products.length === 0) {
+  if (filteredPaginated.length === 0 && filteredLatest.length === 0) {
     return (
       <div className="p-4 border border-gray-300 bg-gray-50 rounded-md">
         <h2 className="text-lg font-semibold">No Products Found</h2>
@@ -120,41 +150,42 @@ export function ProductTable() {
             <TableHead>Brand</TableHead>
             <TableHead>Score</TableHead>
             <TableHead>Description</TableHead>
-            <TableHead>Ingredients</TableHead>
             <TableHead>Links</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {products.map((product) => (
+          {/* Latest products always at the top */}
+          {filteredLatest.map((product) => (
             <TableRow key={product.id}>
               <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
-                  {product.imageUrl && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <img
-                            src={product.imageUrl || "/placeholder.svg"}
-                            alt={product.productName}
-                            className="w-10 h-10 rounded object-cover"
-                            onError={(e) => {
-                              console.log(`Failed to load image for product: ${product.productName}`)
-                              e.currentTarget.src = "/placeholder.svg"
-                              e.currentTarget.onerror = null
-                            }}
-                          />
-                        </TooltipTrigger>
-                        <TooltipContent side="right">
-                          <img
-                            src={product.imageUrl}
-                            alt={product.productName}
-                            className="max-w-[200px] max-h-[200px] object-contain"
-                          />
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <img
+                          src={product.imageUrl || PLACEHOLDER_IMG}
+                          alt={product.productName}
+                          className="w-10 h-10 rounded object-cover"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null
+                            e.currentTarget.src = PLACEHOLDER_IMG
+                          }}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <img
+                          src={product.imageUrl || PLACEHOLDER_IMG}
+                          alt={product.productName}
+                          className="max-w-[200px] max-h-[200px] object-contain"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null
+                            e.currentTarget.src = PLACEHOLDER_IMG
+                          }}
+                        />
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                   {product.productName || "Unknown Product"}
                 </div>
               </TableCell>
@@ -182,16 +213,74 @@ export function ProductTable() {
                   </Tooltip>
                 </TooltipProvider>
               </TableCell>
+              <TableCell>
+                <div className="flex gap-2">
+                  {product.productUrl && (
+                    <a href={product.productUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">
+                      <ExternalLink className="h-4 w-4" />
+                    </a>
+                  )}
+                  <Button variant="ghost" size="sm" onClick={() => console.log("Edit product:", product)}>
+                    <Edit className="h-4 w-4 mr-1" /> Edit
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+          {/* Paginated products below */}
+          {filteredPaginated.map((product) => (
+            <TableRow key={product.id}>
+              <TableCell className="font-medium">
+                <div className="flex items-center gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <img
+                          src={product.imageUrl || PLACEHOLDER_IMG}
+                          alt={product.productName}
+                          className="w-10 h-10 rounded object-cover"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null
+                            e.currentTarget.src = PLACEHOLDER_IMG
+                          }}
+                        />
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        <img
+                          src={product.imageUrl || PLACEHOLDER_IMG}
+                          alt={product.productName}
+                          className="max-w-[200px] max-h-[200px] object-contain"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null
+                            e.currentTarget.src = PLACEHOLDER_IMG
+                          }}
+                        />
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  {product.productName || "Unknown Product"}
+                </div>
+              </TableCell>
+              <TableCell>
+                <Badge variant="secondary">{product.category || "Uncategorized"}</Badge>
+              </TableCell>
+              <TableCell>{product.brand || "Unknown Brand"}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-1">
+                  <span className="font-semibold">{product.evaluationScore || 0}</span>
+                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                </div>
+              </TableCell>
               <TableCell className="max-w-xs">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <div className="truncate">
-                        {product.ingredients ? `${product.ingredients.slice(0, 30)}...` : "No ingredients listed"}
+                      <div className="truncate" title={product.description}>
+                        {product.description || "No description available"}
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-md">
-                      {product.ingredients || "No ingredients listed"}
+                      {product.description || "No description available"}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
