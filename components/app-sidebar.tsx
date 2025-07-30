@@ -14,27 +14,27 @@ import Link from "next/link"
 
 const menuItems = [
 	{
-		title: "Dashboard",
+		title: "ダッシュボード", // Dashboard
 		url: "/",
 		icon: BarChart3,
 	},
 	{
-		title: "User Management",
+		title: "ユーザー管理", // User Management
 		url: "/users",
 		icon: Users,
 	},
 	{
-		title: "Product Recommendation",
+		title: "商品レコメンド", // Product Recommendation
 		url: "/products",
 		icon: Package,
 	},
 	{
-		title: "Data Export",
+		title: "データエクスポート", // Data Export
 		url: "/export",
 		icon: Download,
 	},
 	{
-		title: "Prompt Management",
+		title: "プロンプト管理", // Prompt Management
 		url: "/prompts",
 		icon: Lightbulb,
 	},
@@ -45,12 +45,12 @@ export function AppSidebar() {
 		<Sidebar>
 			<SidebarHeader>
 				<div className="px-4 py-2">
-					<h2 className="text-lg font-semibold">Skincare Admin</h2>
+					<h2 className="text-lg font-semibold">スキンケア管理画面</h2>
 				</div>
 			</SidebarHeader>
 			<SidebarContent>
 				<SidebarGroup>
-					<SidebarGroupLabel>Management</SidebarGroupLabel>
+					<SidebarGroupLabel>管理</SidebarGroupLabel>
 					<SidebarGroupContent>
 						<SidebarMenu>
 							{menuItems.map((item) => (
