@@ -8,7 +8,8 @@ import { useEffect, useState } from "react"
 import { getProducts, type Product } from "@/lib/firebase-service"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
-const PLACEHOLDER_IMG = "https://via.placeholder.com/40?text=No+Image"
+const PLACEHOLDER_IMG =
+  "data:image/svg+xml;utf8,<svg width='40' height='40' xmlns='http://www.w3.org/2000/svg'><rect width='100%' height='100%' fill='%23e5e7eb'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='%239ca3af'>No Image</text></svg>"
 
 export function ProductTable({ search, refreshKey }: { search: string, refreshKey: number }) {
   const [products, setProducts] = useState<Product[]>([])

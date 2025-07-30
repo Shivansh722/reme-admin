@@ -82,6 +82,8 @@ export async function getProducts(page = 1, productsPerPage = 20): Promise<Produ
     const snapshot = await getCountFromServer(productsRef);
     const total = snapshot.data().count;
     console.log(`Total products in collection: ${total}`);
+  
+  
     
     // Try a simple query first without any ordering or pagination
     console.log("Trying a simple query first to check access...");
@@ -788,5 +790,21 @@ export async function addProduct(product: Record<string, any>) {
   const docRef = await addDoc(productsRef, payload)
   console.log("[addProduct] Document added with ID:", docRef.id)
   return docRef.id
+}
+
+
+export async function importProductsFromCsv(products: Product[]) {
+  const { initializeFirebaseWithFallback } = await import("./firebase");
+  const { db } = await initializeFirebaseWithFallback();
+
+  const { collection, doc, setDoc } = await import("firebase/firestore");
+
+  const firestoreDb = db as import("firebase/firestore").Firestore;
+  const batchPromises = products.map(async (product) => {
+    // Use product.id as doc id, or generate one if not present
+    const docId = product.id || crypto.randomUUID();
+    await setDoc(doc(collection(firestoreDb, "products"), docId), { ...product, id: docId }, { merge: true });
+  });
+  await Promise.all(batchPromises);
 }
 
