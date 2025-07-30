@@ -16,8 +16,8 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
-  const [totalProducts, setTotalProducts] = useState(0)
   const productsPerPage = 20
+  const maxPages = 5
 
   useEffect(() => {
     console.log("ProductTable component mounted")
@@ -27,29 +27,23 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
       loading, 
       products: products.length, 
       error, 
-      currentPage, 
-      totalProducts
+      currentPage
     })
     
     async function fetchProducts() {
       setLoading(true)
       try {
         let productData: Product[] = []
-        let total = 0
         if (currentPage === 1) {
           // Fetch enough to fill latest + page
-          const { products: all, total: t } = await getProducts(1, productsPerPage + 3)
+          const { products: all } = await getProducts(1, productsPerPage + 3)
           const latestIds = new Set(latestProducts.map(p => p.id))
-          // Remove latest 3 from the fetched list, then take the next 20
           productData = all.filter(p => !latestIds.has(p.id)).slice(0, productsPerPage)
-          total = t
         } else {
-          const { products: paged, total: t } = await getProducts(currentPage, productsPerPage)
+          const { products: paged } = await getProducts(currentPage, productsPerPage)
           productData = paged
-          total = t
         }
         setProducts(productData)
-        setTotalProducts(total)
       } catch (error) {
         setError(error instanceof Error ? error.message : String(error))
       } finally {
@@ -72,7 +66,7 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
     fetchLatest()
   }, [refreshKey])
 
-  const totalPages = Math.ceil(totalProducts / productsPerPage)
+  const totalPages = maxPages
 
   const handlePreviousPage = () => {
     if (currentPage > 1) {
@@ -137,9 +131,6 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Product Recommendation Management</h2>
-        <p className="text-sm text-gray-500">
-          Showing {(currentPage - 1) * productsPerPage + 1}-{Math.min(currentPage * productsPerPage, totalProducts)} of {totalProducts} products
-        </p>
       </div>
       
       <Table>
