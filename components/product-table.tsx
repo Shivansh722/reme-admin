@@ -21,22 +21,11 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
   const maxPages = 5
 
   useEffect(() => {
-    console.log("ProductTable component mounted")
-    
-    // Log component state
-    console.log("Current state:", { 
-      loading, 
-      products: products.length, 
-      error, 
-      currentPage
-    })
-    
     async function fetchProducts() {
       setLoading(true)
       try {
         let productData: Product[] = []
         if (currentPage === 1) {
-          // Fetch enough to fill latest + page
           const { products: all } = await getProducts(1, productsPerPage + 3)
           const latestIds = new Set(latestProducts.map(p => p.id))
           productData = all.filter(p => !latestIds.has(p.id)).slice(0, productsPerPage)
@@ -81,11 +70,9 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
     }
   }
 
-  // Filter out latest products from paginated products
   const latestIds = new Set(latestProducts.map(p => p.id))
   const paginatedWithoutLatest = products.filter(p => !latestIds.has(p.id))
 
-  // Filter both lists by search
   const q = search.trim().toLowerCase()
   const filterFn = (product: Product) =>
     !q ||
@@ -99,7 +86,7 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
   if (loading) {
     return (
       <div className="space-y-4">
-        <p className="text-sm text-gray-500">Loading product data from Firebase (page {currentPage})...</p>
+        <p className="text-sm text-gray-500">Firebaseから商品データを読み込み中（{currentPage}ページ目）...</p>
         {[...Array(8)].map((_, i) => (
           <div key={i} className="animate-pulse">
             <div className="h-12 bg-gray-200 rounded"></div>
@@ -112,9 +99,9 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
   if (error) {
     return (
       <div className="p-4 border border-red-300 bg-red-50 rounded-md">
-        <h2 className="text-lg font-semibold text-red-700">Error Loading Products</h2>
+        <h2 className="text-lg font-semibold text-red-700">商品データの読み込みエラー</h2>
         <p className="text-sm text-red-600">{error}</p>
-        <p className="text-sm text-gray-600 mt-2">Please check your Firebase connection and try again.</p>
+        <p className="text-sm text-gray-600 mt-2">Firebase接続を確認し、再度お試しください。</p>
       </div>
     )
   }
@@ -122,8 +109,8 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
   if (filteredPaginated.length === 0 && filteredLatest.length === 0) {
     return (
       <div className="p-4 border border-gray-300 bg-gray-50 rounded-md">
-        <h2 className="text-lg font-semibold">No Products Found</h2>
-        <p className="text-sm text-gray-600">No products available in the database.</p>
+        <h2 className="text-lg font-semibold">商品が見つかりません</h2>
+        <p className="text-sm text-gray-600">データベースに商品がありません。</p>
       </div>
     )
   }
@@ -131,23 +118,22 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Product Recommendation Management</h2>
+        <h2 className="text-2xl font-bold">商品おすすめ管理</h2>
       </div>
       
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Product Name</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead>Brand</TableHead>
-            <TableHead>Score</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead>Links</TableHead>
-            <TableHead>Actions</TableHead>
+            <TableHead>商品名</TableHead>
+            <TableHead>カテゴリ</TableHead>
+            <TableHead>ブランド</TableHead>
+            <TableHead>評価スコア</TableHead>
+            <TableHead>商品説明</TableHead>
+            <TableHead>リンク</TableHead>
+            <TableHead>操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {/* Latest products always at the top */}
           {filteredLatest.map((product) => (
             <TableRow key={product.id}>
               <TableCell className="font-medium">
@@ -178,13 +164,13 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  {product.productName || "Unknown Product"}
+                  {product.productName || "不明な商品"}
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="secondary">{product.category || "Uncategorized"}</Badge>
+                <Badge variant="secondary">{product.category || "未分類"}</Badge>
               </TableCell>
-              <TableCell>{product.brand || "Unknown Brand"}</TableCell>
+              <TableCell>{product.brand || "不明なブランド"}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
                   <span className="font-semibold">{product.evaluationScore || 0}</span>
@@ -196,11 +182,11 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="truncate" title={product.description}>
-                        {product.description || "No description available"}
+                        {product.description || "説明なし"}
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-md">
-                      {product.description || "No description available"}
+                      {product.description || "説明なし"}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -213,13 +199,12 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
                     </a>
                   )}
                   <Button variant="ghost" size="sm" onClick={() => console.log("Edit product:", product)}>
-                    <Edit className="h-4 w-4 mr-1" /> Edit
+                    <Edit className="h-4 w-4 mr-1" /> 編集
                   </Button>
                 </div>
               </TableCell>
             </TableRow>
           ))}
-          {/* Paginated products below */}
           {filteredPaginated.map((product) => (
             <TableRow key={product.id}>
               <TableCell className="font-medium">
@@ -250,13 +235,13 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
-                  {product.productName || "Unknown Product"}
+                  {product.productName || "不明な商品"}
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="secondary">{product.category || "Uncategorized"}</Badge>
+                <Badge variant="secondary">{product.category || "未分類"}</Badge>
               </TableCell>
-              <TableCell>{product.brand || "Unknown Brand"}</TableCell>
+              <TableCell>{product.brand || "不明なブランド"}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-1">
                   <span className="font-semibold">{product.evaluationScore || 0}</span>
@@ -268,11 +253,11 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="truncate" title={product.description}>
-                        {product.description || "No description available"}
+                        {product.description || "説明なし"}
                       </div>
                     </TooltipTrigger>
                     <TooltipContent side="bottom" className="max-w-md">
-                      {product.description || "No description available"}
+                      {product.description || "説明なし"}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -285,7 +270,7 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
                     </a>
                   )}
                   <Button variant="ghost" size="sm" onClick={() => console.log("Edit product:", product)}>
-                    <Edit className="h-4 w-4 mr-1" /> Edit
+                    <Edit className="h-4 w-4 mr-1" /> 編集
                   </Button>
                 </div>
               </TableCell>
@@ -294,7 +279,6 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
         </TableBody>
       </Table>
       
-      {/* Pagination controls */}
       <div className="flex items-center justify-center space-x-2 py-4">
         <Button 
           variant="outline" 
@@ -303,10 +287,10 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
           disabled={currentPage === 1}
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
-          Previous
+          前へ
         </Button>
         <span className="text-sm">
-          Page {currentPage} of {totalPages}
+          {currentPage}ページ / 全{totalPages}ページ
         </span>
         <Button 
           variant="outline" 
@@ -314,7 +298,7 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
           onClick={handleNextPage} 
           disabled={currentPage === totalPages}
         >
-          Next
+          次へ
           <ChevronRight className="h-4 w-4 ml-1" />
         </Button>
       </div>

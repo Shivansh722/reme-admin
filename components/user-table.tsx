@@ -17,7 +17,7 @@ export function UserTable() {
         const userData = await getUsers()
         setUsers(userData)
       } catch (error) {
-        console.error("Error loading users:", error)
+        console.error("ユーザーの読み込みエラー:", error)
       } finally {
         setLoading(false)
       }
@@ -27,15 +27,15 @@ export function UserTable() {
   }, [])
 
   const formatDate = (timestamp: any) => {
-    if (!timestamp) return "N/A"
+    if (!timestamp) return "なし"
     try {
-      return timestamp.toDate().toLocaleDateString("en-US", {
+      return timestamp.toDate().toLocaleDateString("ja-JP", {
         year: "numeric",
         month: "short",
         day: "numeric",
       })
     } catch {
-      return "N/A"
+      return "なし"
     }
   }
 
@@ -55,14 +55,14 @@ export function UserTable() {
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Name</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Registration Date</TableHead>
-          <TableHead>Last Login</TableHead>
-          <TableHead>Latest Analysis</TableHead>
-          <TableHead>Provider</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Actions</TableHead>
+          <TableHead>名前</TableHead>
+          <TableHead>メールアドレス</TableHead>
+          <TableHead>登録日</TableHead>
+          <TableHead>最終ログイン</TableHead>
+          <TableHead>最新診断日</TableHead>
+          <TableHead>プロバイダー</TableHead>
+          <TableHead>ステータス</TableHead>
+          <TableHead>操作</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -77,7 +77,7 @@ export function UserTable() {
                     className="w-8 h-8 rounded-full"
                   />
                 )}
-                {user.displayName || "Unknown User"}
+                {user.displayName || "不明なユーザー"}
               </div>
             </TableCell>
             <TableCell>{user.email}</TableCell>
@@ -86,21 +86,21 @@ export function UserTable() {
             <TableCell>{formatDate(user.latestAnalysisDate)}</TableCell>
             <TableCell>
               <Badge variant="outline" className="capitalize">
-                {user.provider || "Unknown"}
+                {user.provider || "不明"}
               </Badge>
             </TableCell>
             <TableCell>
-              <Badge variant="default">Active</Badge>
+              <Badge variant="default">アクティブ</Badge>
             </TableCell>
             <TableCell>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" aria-label="詳細を見る">
                   <Eye className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" aria-label="編集">
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" aria-label="削除">
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>

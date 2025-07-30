@@ -34,12 +34,12 @@ export default function ProductsPage() {
           const products = results.data as any[]
           console.log(`[CSV Import] Parsed products: count=${products.length}`, products)
           if (!products.length) {
-            alert("❌ No products found in CSV.")
+            alert("❌ CSVに商品が見つかりません。")
             setImportLoading(false)
             return
           }
 
-          // Optional: Validate required fields
+          // 必須フィールドのバリデーション
           const requiredFields = [
             "カテゴリ",
             "タグ",
@@ -59,7 +59,7 @@ export default function ProductsPage() {
           const skipped = products.length - validProducts.length
 
           if (validProducts.length === 0) {
-            alert("❌ No valid products found in CSV. Please check your columns.")
+            alert("❌ 有効な商品がCSVに見つかりません。カラム名をご確認ください。")
             setImportLoading(false)
             return
           }
@@ -68,21 +68,21 @@ export default function ProductsPage() {
           const elapsed = ((Date.now() - start) / 1000).toFixed(1)
           console.log(`[CSV Import] Successfully uploaded ${validProducts.length} products to Firebase in ${elapsed}s.`)
           if (skipped > 0) {
-            alert(`✅ Imported ${validProducts.length} products in ${elapsed}s.\n⚠️ Skipped ${skipped} invalid rows. The table will refresh.`)
+            alert(`✅ ${validProducts.length}件の商品を${elapsed}秒でインポートしました。\n⚠️ 無効な行が${skipped}件スキップされました。テーブルが更新されます。`)
           } else {
-            alert(`✅ Imported ${validProducts.length} products in ${elapsed}s. The table will refresh.`)
+            alert(`✅ ${validProducts.length}件の商品を${elapsed}秒でインポートしました。テーブルが更新されます。`)
           }
           setRefreshKey(k => k + 1)
         } catch (err) {
           console.error("[CSV Import] Import failed:", err)
-          alert("❌ Import failed: " + (err instanceof Error ? err.message : String(err)))
+          alert("❌ インポートに失敗しました: " + (err instanceof Error ? err.message : String(err)))
         } finally {
           setImportLoading(false)
         }
       },
       error: (err) => {
         console.error("[CSV Import] Parse error:", err)
-        alert("❌ CSV Parse error: " + err.message)
+        alert("❌ CSVの解析エラー: " + err.message)
         setImportLoading(false)
       }
     })
@@ -93,7 +93,7 @@ export default function ProductsPage() {
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
         <SidebarTrigger />
-        <h1 className="text-3xl font-bold">Product Recommendation Management</h1>
+        <h1 className="text-3xl font-bold">商品おすすめ管理</h1>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -101,12 +101,12 @@ export default function ProductsPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle>Product Management</CardTitle>
+                <CardTitle>商品管理</CardTitle>
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search products..."
+                      placeholder="商品を検索..."
                       className="pl-8 w-64"
                       value={search}
                       onChange={e => setSearch(e.target.value)}
@@ -129,12 +129,12 @@ export default function ProductsPage() {
                       className="flex items-center gap-1"
                     >
                       <Upload className="h-4 w-4" />
-                      Import CSV
+                      CSVインポート
                     </Button>
                   </div>
                   <Button onClick={() => setAddOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Product
+                    商品追加
                   </Button>
                 </div>
               </div>

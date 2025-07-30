@@ -10,11 +10,11 @@ import { collection, query, where, getDocs, getFirestore } from "firebase/firest
 import { getApp } from "firebase/app"
 
 const exportItems = [
-    { id: "user-info", label: "User Information" },
-    { id: "diagnostic-results", label: "Diagnostic Results" },
-    { id: "product-recommendations", label: "Product Recommendations" },
-    { id: "consultation-records", label: "Consultation Records" },
-    { id: "chat-history", label: "Chat History" },
+    { id: "user-info", label: "ユーザー情報" },
+    { id: "diagnostic-results", label: "診断結果" },
+    { id: "product-recommendations", label: "商品おすすめ" },
+    { id: "consultation-records", label: "相談履歴" },
+    { id: "chat-history", label: "チャット履歴" },
 ]
 
 export function ExportForm() {
@@ -35,7 +35,7 @@ export function ExportForm() {
 
     const handleExport = async () => {
         if (selectedItems.length === 0) {
-            alert("Please select at least one item to export")
+            alert("エクスポートする項目を1つ以上選択してください")
             return
         }
 
@@ -43,27 +43,27 @@ export function ExportForm() {
         const endDate = new Date(dateRange.endDate)
 
         if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-            alert("Please select valid date range")
+            alert("有効な日付範囲を選択してください")
             return
         }
 
         setLoading(true)
-        console.log("Exporting:", { selectedItems, dateRange })
+        console.log("エクスポート中:", { selectedItems, dateRange })
         
         try {
-            // Initialize Firestore
+            // Firestore初期化
             const db = getFirestore(getApp())
             
-            // Prepare headers for CSV
-            const headers = ["User ID", "Created Date", "Display Name", "Email"]
+            // CSVヘッダー
+            const headers = ["ユーザーID", "登録日", "表示名", "メールアドレス"]
             
-            // Add selected items to headers
+            // 選択項目に応じてヘッダー追加
             if (selectedItems.includes("diagnostic-results")) {
-                headers.push("Latest Analysis Date", "Skin Age", "Skin Grade", 
-                    "Firmness", "Pimples", "Pores", "Redness", "Sagging", "Analysis Result")
+                headers.push("最新診断日", "肌年齢", "肌ランク", 
+                    "ハリ", "ニキビ", "毛穴", "赤み", "たるみ", "診断結果")
             }
             
-            // Fetch users data
+            // ユーザーデータ取得
             const usersRef = collection(db, "users")
             const q = query(
                 usersRef,
@@ -74,7 +74,7 @@ export function ExportForm() {
             const querySnapshot = await getDocs(q)
             const rows = []
             
-            // Process each user
+            // 各ユーザー処理
             for (const userDoc of querySnapshot.docs) {
                 const userData = userDoc.data()
                 const userId = userDoc.id
@@ -86,9 +86,8 @@ export function ExportForm() {
                     userData.email || ""
                 ]
                 
-                // Add diagnostic data if selected
+                // 診断データ追加
                 if (selectedItems.includes("diagnostic-results")) {
-                    // Default empty values
                     let analysisData = {
                         latestAnalysisDate: "",
                         skin_age: "",
@@ -101,10 +100,8 @@ export function ExportForm() {
                         analysisResult: ""
                     }
                     
-                    // If user has a latest analysis ID, fetch that specific analysis
                     if (userData.latestAnalysisId) {
                         try {
-                            // Get the latest analysis document from skinAnalysis subcollection
                             const analysisRef = collection(db, "users", userId, "skinAnalysis")
                             const analysisDoc = await getDocs(query(
                                 analysisRef,
@@ -126,11 +123,10 @@ export function ExportForm() {
                                 }
                             }
                         } catch (error) {
-                            console.error(`Error fetching analysis for user ${userId}:`, error)
+                            console.error(`ユーザー${userId}の診断取得エラー:`, error)
                         }
                     }
                     
-                    // Add the analysis data to the row
                     row.push(
                         analysisData.latestAnalysisDate,
                         analysisData.skin_age,
@@ -147,13 +143,12 @@ export function ExportForm() {
                 rows.push(row)
             }
             
-            // Convert to CSV
+            // CSV変換
             const escapeCell = (cell: any) => {
               if (cell === null || cell === undefined) return ""
-              // Convert to string, escape quotes, remove line breaks
               const cellStr = String(cell)
-                .replace(/"/g, '""')         // Escape double quotes
-                .replace(/[\r\n]+/g, " ")    // Replace line breaks with space
+                .replace(/"/g, '""')
+                .replace(/[\r\n]+/g, " ")
               return `"${cellStr}"`
             }
 
@@ -162,7 +157,7 @@ export function ExportForm() {
               ...rows.map(row => row.map(escapeCell).join(","))
             ].join("\n")
             
-            // Create download link
+            // ダウンロードリンク作成
             const encodedUri = encodeURI(`data:text/csv;charset=utf-8,${csvContent}`)
             const link = document.createElement("a")
             link.setAttribute("href", encodedUri)
@@ -171,14 +166,12 @@ export function ExportForm() {
                 `skincare-users-export-${new Date().toISOString().split("T")[0]}.csv`
             )
             document.body.appendChild(link)
-            
-            // Trigger download and cleanup
             link.click()
             document.body.removeChild(link)
             
         } catch (error) {
-            console.error("Error exporting data:", error)
-            alert("Error exporting data. Please check console for details.")
+            console.error("エクスポートエラー:", error)
+            alert("エクスポート中にエラーが発生しました。詳細はコンソールをご確認ください。")
         } finally {
             setLoading(false)
         }
@@ -188,7 +181,7 @@ export function ExportForm() {
         <div className="space-y-6">
             <div className="space-y-4">
                 <div>
-                    <Label htmlFor="start-date">Start Date</Label>
+                    <Label htmlFor="start-date">開始日</Label>
                     <Input
                         id="start-date"
                         type="date"
@@ -199,7 +192,7 @@ export function ExportForm() {
                     />
                 </div>
                 <div>
-                    <Label htmlFor="end-date">End Date</Label>
+                    <Label htmlFor="end-date">終了日</Label>
                     <Input
                         id="end-date"
                         type="date"
@@ -212,7 +205,7 @@ export function ExportForm() {
             </div>
 
             <div className="space-y-3">
-                <Label>Select Data to Export</Label>
+                <Label>エクスポートするデータを選択</Label>
                 {exportItems.map((item) => (
                     <div key={item.id} className="flex items-center space-x-2">
                         <Checkbox
@@ -229,7 +222,7 @@ export function ExportForm() {
 
             <Button onClick={handleExport} className="w-full" disabled={loading}>
                 <Download className="h-4 w-4 mr-2" />
-                {loading ? "Exporting..." : "Export to CSV"}
+                {loading ? "エクスポート中..." : "CSVでエクスポート"}
             </Button>
         </div>
     )

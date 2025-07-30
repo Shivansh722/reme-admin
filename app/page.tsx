@@ -29,12 +29,12 @@ export default function Dashboard() {
 
       try {
         setLoading(true)
-        console.log("📊 Dashboard: Loading data from Firestore...")
+        console.log("📊 ダッシュボード: Firestoreからデータを読み込み中...")
         const dashboardStats = await getDashboardStats()
         setStats(dashboardStats)
-        console.log("✅ Dashboard: Data loaded successfully")
+        console.log("✅ ダッシュボード: データの読み込みに成功しました")
       } catch (error) {
-        console.error("❌ Dashboard: Error loading data:", error)
+        console.error("❌ ダッシュボード: データの読み込みエラー:", error)
       } finally {
         setLoading(false)
       }
@@ -48,14 +48,14 @@ export default function Dashboard() {
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-4">
           <SidebarTrigger />
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <h1 className="text-3xl font-bold">ダッシュボード</h1>
         </div>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Initializing Firebase connection...</p>
-            <p className="text-sm text-muted-foreground mt-2">Project: reme-57c1b</p>
-            <p className="text-xs text-muted-foreground mt-1">This may take a few moments</p>
+            <p className="text-muted-foreground">Firebase接続を初期化中...</p>
+            <p className="text-sm text-muted-foreground mt-2">プロジェクト: reme-57c1b</p>
+            <p className="text-xs text-muted-foreground mt-1">しばらくお待ちください</p>
           </div>
         </div>
       </div>
@@ -67,35 +67,35 @@ export default function Dashboard() {
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-4">
           <SidebarTrigger />
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <h1 className="text-3xl font-bold">ダッシュボード</h1>
         </div>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Firebase Connection Error</AlertTitle>
+          <AlertTitle>Firebase接続エラー</AlertTitle>
           <AlertDescription className="mt-2">
             <div className="space-y-3">
               <p className="text-sm">
-                <strong>Error:</strong> {error}
+                <strong>エラー:</strong> {error}
               </p>
 
               <div className="bg-red-50 border border-red-200 rounded p-3">
-                <p className="font-semibold text-red-800 mb-2">Possible solutions:</p>
+                <p className="font-semibold text-red-800 mb-2">考えられる解決策:</p>
                 <ul className="text-sm text-red-700 space-y-1 list-disc list-inside">
-                  <li>Check your internet connection</li>
-                  <li>Verify that Firestore is enabled in Firebase Console</li>
-                  <li>Make sure your Firebase project is active</li>
-                  <li>Try using a different browser or incognito mode</li>
-                  <li>Clear your browser cache and cookies</li>
+                  <li>インターネット接続を確認してください</li>
+                  <li>FirebaseコンソールでFirestoreが有効になっているか確認してください</li>
+                  <li>Firebaseプロジェクトがアクティブであることを確認してください</li>
+                  <li>別のブラウザやシークレットモードでお試しください</li>
+                  <li>ブラウザのキャッシュとクッキーをクリアしてください</li>
                 </ul>
               </div>
 
               <div className="flex gap-2">
                 <Button onClick={retryConnection} variant="outline" size="sm">
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Retry Connection
+                  再接続
                 </Button>
                 <Button onClick={() => window.location.reload()} variant="outline" size="sm">
-                  Refresh Page
+                  ページを再読み込み
                 </Button>
               </div>
             </div>
@@ -110,7 +110,7 @@ export default function Dashboard() {
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-4">
           <SidebarTrigger />
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <h1 className="text-3xl font-bold">ダッシュボード</h1>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
@@ -132,52 +132,52 @@ export default function Dashboard() {
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
         <SidebarTrigger />
-        <h1 className="text-3xl font-bold">Dashboard</h1>
+        <h1 className="text-3xl font-bold">ダッシュボード</h1>
       </div>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <CardTitle className="text-sm font-medium">総ユーザー数</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalUsers.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">+{stats.monthlyUsers} this month</p>
+            <p className="text-xs text-muted-foreground">+{stats.monthlyUsers} 今月</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Daily Users</CardTitle>
+            <CardTitle className="text-sm font-medium">本日のユーザー数</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.dailyUsers}</div>
-            <p className="text-xs text-muted-foreground">Active today</p>
+            <p className="text-xs text-muted-foreground">本日アクティブ</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Daily Diagnostics</CardTitle>
+            <CardTitle className="text-sm font-medium">本日の診断数</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.dailyAnalyses}</div>
-            <p className="text-xs text-muted-foreground">Analyses today</p>
+            <p className="text-xs text-muted-foreground">本日の分析</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Analyses</CardTitle>
+            <CardTitle className="text-sm font-medium">総診断数</CardTitle>
             <Star className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalAnalyses.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">All time</p>
+            <p className="text-xs text-muted-foreground">累計</p>
           </CardContent>
         </Card>
       </div>
@@ -186,8 +186,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Diagnostic Trends</CardTitle>
-            <CardDescription>Daily diagnostic count over time</CardDescription>
+            <CardTitle>診断トレンド</CardTitle>
+            <CardDescription>日別診断件数の推移</CardDescription>
           </CardHeader>
           <CardContent>
             <DiagnosticChart />
@@ -196,8 +196,8 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Skin Condition Trends</CardTitle>
-            <CardDescription>Average skin analysis scores</CardDescription>
+            <CardTitle>肌状態トレンド</CardTitle>
+            <CardDescription>平均肌分析スコア</CardDescription>
           </CardHeader>
           <CardContent>
             <SkinTrendChart />
@@ -208,8 +208,8 @@ export default function Dashboard() {
       {/* Popular Products */}
       <Card>
         <CardHeader>
-          <CardTitle>Product Recommendations</CardTitle>
-          <CardDescription>Top products from your database</CardDescription>
+          <CardTitle>おすすめ商品</CardTitle>
+          <CardDescription>データベース内の人気商品</CardDescription>
         </CardHeader>
         <CardContent>
           <PopularProducts />
