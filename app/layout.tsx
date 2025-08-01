@@ -6,6 +6,8 @@ import { SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { Toaster } from "@/components/ui/toaster"
 import { FirebaseProvider } from "@/components/firebase-provider"
+import { AuthProvider } from "@/components/auth-provider"
+
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -22,13 +24,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <FirebaseProvider>
-          <SidebarProvider>
-            <AppSidebar />
-            <main className="flex-1 overflow-auto">{children}</main>
-          </SidebarProvider>
-          <Toaster />
-        </FirebaseProvider>
+        <AuthProvider>
+          <FirebaseProvider>
+            <SidebarProvider>
+              <AppSidebar />
+              <main className="flex-1 overflow-auto">{children}</main>
+            </SidebarProvider>
+            <Toaster />
+          </FirebaseProvider>
+        </AuthProvider>
       </body>
     </html>
   )
