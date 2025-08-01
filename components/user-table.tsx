@@ -3,13 +3,14 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, Edit, Trash2 } from "lucide-react"
+import { Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
-import { getUsers, type User } from "@/lib/firebase-service"
+import { getUsers, deleteUser, type User } from "@/lib/firebase-service"
 
 export function UserTable() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchUsers() {
@@ -25,6 +26,24 @@ export function UserTable() {
 
     fetchUsers()
   }, [])
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm("このユーザーを削除してもよろしいですか？この操作は取り消せません。")) {
+      return
+    }
+
+    setDeletingUserId(userId)
+    try {
+      await deleteUser(userId)
+      setUsers(prev => prev.filter(user => user.id !== userId))
+      console.log("ユーザーが正常に削除されました")
+    } catch (error) {
+      console.error("ユーザーの削除エラー:", error)
+      alert("ユーザーの削除に失敗しました")
+    } finally {
+      setDeletingUserId(null)
+    }
+  }
 
   const formatDate = (timestamp: any) => {
     if (!timestamp) return "なし"
@@ -94,14 +113,15 @@ export function UserTable() {
             </TableCell>
             <TableCell>
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="sm" aria-label="詳細を見る">
-                  <Eye className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" aria-label="編集">
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" aria-label="削除">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  aria-label="削除"
+                  onClick={() => handleDeleteUser(user.id)}
+                  disabled={deletingUserId === user.id}
+                >
                   <Trash2 className="h-4 w-4" />
+                  {deletingUserId === user.id && "削除中..."}
                 </Button>
               </div>
             </TableCell>

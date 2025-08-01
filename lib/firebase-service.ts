@@ -761,3 +761,46 @@ export async function importProductsFromCsv(products: Product[]) {
   await Promise.all(batchPromises);
 }
 
+// Delete user function
+export async function deleteUser(userId: string): Promise<void> {
+  if (!isClient) {
+    throw new Error("Delete user can only be called on client side");
+  }
+
+  try {
+    console.log(`🗑️ Attempting to delete user ${userId}...`);
+
+    const { initializeFirebaseWithFallback } = await import("./firebase");
+    const { app, db } = await initializeFirebaseWithFallback();
+
+    // Check if we're using fallback mode (REST API)
+    if (isMockFirestore(db)) {
+      console.log("🌐 Using REST API fallback for user deletion...");
+      const projectId = "reme-57c1b";
+      const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users/${userId}`;
+      
+      const response = await fetch(url, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error(`REST API delete failed: ${response.status}`);
+      }
+      
+      console.log(`✅ Successfully deleted user ${userId} via REST API`);
+      return;
+    }
+
+    // Use normal Firestore SDK
+    const { doc, deleteDoc } = await import("firebase/firestore");
+    const userDocRef = doc(db, "users", userId);
+    
+    await deleteDoc(userDocRef);
+    console.log(`✅ Successfully deleted user ${userId}`);
+    
+  } catch (error) {
+    console.error(`❌ Error deleting user ${userId}:`, error);
+    throw error;
+  }
+}
+
