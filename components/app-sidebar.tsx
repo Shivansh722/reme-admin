@@ -29,11 +29,6 @@ const menuItems = [
 		icon: Package,
 	},
 	{
-		title: "データエクスポート", // Data Export
-		url: "/export",
-		icon: Download,
-	},
-	{
 		title: "プロンプト管理", // Prompt Management
 		url: "/prompts",
 		icon: Lightbulb,
