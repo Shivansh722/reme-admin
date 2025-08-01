@@ -3,85 +3,83 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Edit, Trash2, ExternalLink, Star, ChevronLeft, ChevronRight } from "lucide-react"
+import { Edit, ExternalLink, Star, ChevronLeft, ChevronRight } from "lucide-react"
 import { useEffect, useState } from "react"
 import { getProducts, type Product } from "@/lib/firebase-service"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+
+
 
 const PLACEHOLDER_IMG =
   "data:image/svg+xml;utf8,<svg width='40' height='40' xmlns='http://www.w3.org/2000/svg'><rect width='100%' height='100%' fill='%23e5e7eb'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' font-size='10' fill='%239ca3af'>No Image</text></svg>"
 
 export function ProductTable({ search, refreshKey }: { search: string, refreshKey: number }) {
   const [products, setProducts] = useState<Product[]>([])
-  const [latestProducts, setLatestProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const productsPerPage = 20
-  const maxPages = 5
+  const [hasNextPage, setHasNextPage] = useState(false)
+  const [pageCursors, setPageCursors] = useState<(string | null)[]>([null])
 
   useEffect(() => {
+    let ignore = false
     async function fetchProducts() {
+      console.log(`📱 COMPONENT: Starting fetchProducts for page ${currentPage}, refreshKey: ${refreshKey}`);
       setLoading(true)
       try {
-        let productData: Product[] = []
-        if (currentPage === 1) {
-          const { products: all } = await getProducts(1, productsPerPage + 3)
-          const latestIds = new Set(latestProducts.map(p => p.id))
-          productData = all.filter(p => !latestIds.has(p.id)).slice(0, productsPerPage)
-        } else {
-          const { products: paged } = await getProducts(currentPage, productsPerPage)
-          productData = paged
+        const cursor = pageCursors[currentPage - 1] || null
+        console.log(`📱 COMPONENT: Using cursor: ${cursor} for page ${currentPage}`);
+        
+        const { products: fetched, total, lastDocId } = await getProducts(productsPerPage, cursor)
+        
+        if (!ignore) {
+          console.log(`📱 COMPONENT: Received ${fetched.length} products, lastDocId: ${lastDocId}`);
+          setProducts(fetched)
+          setHasNextPage(!!lastDocId && fetched.length === productsPerPage)
+          
+          // Save cursor for next page
+          if (lastDocId && pageCursors.length === currentPage) {
+            console.log(`📱 COMPONENT: Saving cursor ${lastDocId} for next page`);
+            setPageCursors(prev => [...prev, lastDocId])
+          }
         }
-        setProducts(productData)
       } catch (error) {
-        setError(error instanceof Error ? error.message : String(error))
+        if (!ignore) {
+          console.error(`📱 COMPONENT ERROR:`, error);
+          setError(error instanceof Error ? error.message : String(error))
+        }
       } finally {
-        setLoading(false)
+        if (!ignore) {
+          console.log(`📱 COMPONENT: Finished loading page ${currentPage}`);
+          setLoading(false)
+        }
       }
     }
-
     fetchProducts()
-  }, [currentPage, refreshKey, latestProducts])
-
-  useEffect(() => {
-    async function fetchLatest() {
-      try {
-        const { products: latest } = await getProducts(1, 3)
-        setLatestProducts(latest)
-      } catch (e) {
-        setLatestProducts([])
-      }
+    return () => { 
+      console.log(`📱 COMPONENT: Cleanup for page ${currentPage}`);
+      ignore = true 
     }
-    fetchLatest()
-  }, [refreshKey])
-
-  const totalPages = maxPages
+  }, [currentPage, refreshKey, pageCursors])
 
   const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1)
-    }
+    console.log(`📱 NAVIGATION: Going to previous page (${currentPage - 1})`);
+    if (currentPage > 1) setCurrentPage(currentPage - 1)
   }
 
   const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1)
-    }
+    console.log(`📱 NAVIGATION: Going to next page (${currentPage + 1})`);
+    if (hasNextPage) setCurrentPage(currentPage + 1)
   }
 
-  const latestIds = new Set(latestProducts.map(p => p.id))
-  const paginatedWithoutLatest = products.filter(p => !latestIds.has(p.id))
-
   const q = search.trim().toLowerCase()
-  const filterFn = (product: Product) =>
+  const filteredProducts = products.filter(product =>
     !q ||
     (product.productName && product.productName.toLowerCase().includes(q)) ||
     (product.brand && product.brand.toLowerCase().includes(q)) ||
     (product.category && product.category.toLowerCase().includes(q))
-
-  const filteredLatest = latestProducts.filter(filterFn)
-  const filteredPaginated = paginatedWithoutLatest.filter(filterFn)
+  )
 
   if (loading) {
     return (
@@ -106,7 +104,7 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
     )
   }
 
-  if (filteredPaginated.length === 0 && filteredLatest.length === 0) {
+  if (filteredProducts.length === 0) {
     return (
       <div className="p-4 border border-gray-300 bg-gray-50 rounded-md">
         <h2 className="text-lg font-semibold">商品が見つかりません</h2>
@@ -120,7 +118,6 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">商品おすすめ管理</h2>
       </div>
-      
       <Table>
         <TableHeader>
           <TableRow>
@@ -134,78 +131,7 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filteredLatest.map((product) => (
-            <TableRow key={product.id}>
-              <TableCell className="font-medium">
-                <div className="flex items-center gap-2">
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <img
-                          src={product.imageUrl || PLACEHOLDER_IMG}
-                          alt={product.productName}
-                          className="w-10 h-10 rounded object-cover"
-                          onError={(e) => {
-                            e.currentTarget.onerror = null
-                            e.currentTarget.src = PLACEHOLDER_IMG
-                          }}
-                        />
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
-                        <img
-                          src={product.imageUrl || PLACEHOLDER_IMG}
-                          alt={product.productName}
-                          className="max-w-[200px] max-h-[200px] object-contain"
-                          onError={(e) => {
-                            e.currentTarget.onerror = null
-                            e.currentTarget.src = PLACEHOLDER_IMG
-                          }}
-                        />
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  {product.productName || "不明な商品"}
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant="secondary">{product.category || "未分類"}</Badge>
-              </TableCell>
-              <TableCell>{product.brand || "不明なブランド"}</TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1">
-                  <span className="font-semibold">{product.evaluationScore || 0}</span>
-                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                </div>
-              </TableCell>
-              <TableCell className="max-w-xs">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <div className="truncate" title={product.description}>
-                        {product.description || "説明なし"}
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent side="bottom" className="max-w-md">
-                      {product.description || "説明なし"}
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  {product.productUrl && (
-                    <a href={product.productUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:text-blue-700">
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => console.log("Edit product:", product)}>
-                    <Edit className="h-4 w-4 mr-1" /> 編集
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {filteredPaginated.map((product) => (
+          {filteredProducts.map((product) => (
             <TableRow key={product.id}>
               <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
@@ -278,7 +204,6 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
           ))}
         </TableBody>
       </Table>
-      
       <div className="flex items-center justify-center space-x-2 py-4">
         <Button 
           variant="outline" 
@@ -290,13 +215,13 @@ export function ProductTable({ search, refreshKey }: { search: string, refreshKe
           前へ
         </Button>
         <span className="text-sm">
-          {currentPage}ページ / 全{totalPages}ページ
+          ページ {currentPage}
         </span>
         <Button 
           variant="outline" 
           size="sm" 
           onClick={handleNextPage} 
-          disabled={currentPage === totalPages}
+          disabled={!hasNextPage}
         >
           次へ
           <ChevronRight className="h-4 w-4 ml-1" />

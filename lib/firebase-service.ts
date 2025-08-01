@@ -42,14 +42,19 @@ export type Product = {
 export type ProductsResponse = {
   products: Product[];
   total: number;
+  lastDocId: string | null;
 };
 
-export async function getProducts(page = 1, productsPerPage = 20): Promise<ProductsResponse> {
-  console.log(`Firebase query: Getting products for page ${page}, limit ${productsPerPage}`);
+export async function getProducts(
+  productsPerPage = 20,
+  cursor: string | null = null
+): Promise<ProductsResponse> {
+  console.log(`🔥 FIREBASE READS TRACKER: Starting getProducts(limit=${productsPerPage}, cursor=${cursor})`);
+  let readCount = 0;
   
   if (!isClient) {
     console.log("Server-side rendering detected, returning empty products");
-    return { products: [], total: 0 };
+    return { products: [], total: 0, lastDocId: null };
   }
   
   try {
@@ -65,11 +70,9 @@ export async function getProducts(page = 1, productsPerPage = 20): Promise<Produ
       const documents = await fetchFromFirestoreREST("products", productsPerPage);
       console.log(`✅ REST API: Fetched ${documents.length} products`, documents);
       
-      // For simplicity in the REST API fallback, we'll return all fetched products
-      // without proper pagination
       const convertedProducts = documents.map(convertFirestoreDocument) as Product[];
       console.log("Converted products:", convertedProducts);
-      return { products: convertedProducts, total: documents.length };
+      return { products: convertedProducts, total: documents.length, lastDocId: null };
     }
     
     // Continue with the original implementation using the db from initializeFirebaseWithFallback
@@ -77,108 +80,52 @@ export async function getProducts(page = 1, productsPerPage = 20): Promise<Produ
     const productsRef = collection(db, 'products');
     console.log("Created collection reference for 'products'");
     
-    // Get total count for pagination
-    console.log("Getting count from server...");
-    const snapshot = await getCountFromServer(productsRef);
-    const total = snapshot.data().count;
-    console.log(`Total products in collection: ${total}`);
-  
-  
-    
-    // Try a simple query first without any ordering or pagination
-    console.log("Trying a simple query first to check access...");
-    const simpleQuery = query(productsRef, limit(1));
-    const simpleQuerySnapshot = await getDocs(simpleQuery);
-    console.log(`Simple query returned ${simpleQuerySnapshot.docs.length} documents`);
-    
-    if (simpleQuerySnapshot.docs.length > 0) {
-      const sampleDoc = simpleQuerySnapshot.docs[0];
-      console.log("Sample document exists:", sampleDoc.id);
-      console.log("Sample document data keys:", Object.keys(sampleDoc.data()));
-      console.log("Sample product name:", sampleDoc.data().productName);
-    } else {
-      console.error("⚠️ WARNING: Simple query returned no documents despite count showing records exist");
-      console.log("Trying alternative query approach...");
-      
-      // Try without the productName ordering that might be causing issues
-      const alternativeQuery = query(productsRef, limit(productsPerPage));
-      const alternativeSnapshot = await getDocs(alternativeQuery);
-      console.log(`Alternative query returned ${alternativeSnapshot.docs.length} documents`);
-      
-      if (alternativeSnapshot.docs.length > 0) {
-        console.log("Alternative query successful, using this approach");
-        const products = alternativeSnapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            productName: data["商品名"] || data.productName || "",
-            brand: data["ブランド名"] || data.brand || "",
-            category: data["カテゴリ"] || data.category || "",
-            description: data["商品詳細"] || data.description || "",
-            imageUrl: data["商品画像URL"] || data.imageUrl || "",
-            productUrl: data["商品URL"] || data.productUrl || "",
-            externalUrl: data["外部URL"] || data.externalUrl || "",
-            evaluationScore: data["評価スコア"] || data.evaluationScore || "",
-            tags: data["タグ"] || data.tags || "",
-            volumePrice: data["容量・参考価格"] || data.volumePrice || "",
-            reviewCount: data["口コミ件数"] || data.reviewCount || "",
-          };
-        });
-        
-        console.log(`Retrieved ${products.length} products using alternative approach`);
-        return { products, total };
-      }
-    }
-    
-    if (total === 0) {
-      console.log("⚠️ Warning: No products found in the database");
-      return { products: [], total: 0 };
-    }
-
-    // Create base query
-    console.log(`Creating query for page ${page} with limit ${productsPerPage}`);
-    // Try without ordering since that might be causing issues
+    // Create query with one extra document to check if there are more pages
     let productsQuery = query(
       productsRef,
-      orderBy("createdAt", "desc"), // <-- Add this line
-      limit(productsPerPage)
+      limit(productsPerPage + 1) // Fetch one extra to check if there's a next page
     );
 
-    // If not the first page, use startAfter with pagination
-    if (page > 1) {
-      console.log(`Getting previous page documents for pagination (page ${page})`);
-      // Get the last document from the previous page
-      const previousPageQuery = query(
-        productsRef,
-        limit((page - 1) * productsPerPage)
-      );
-      const previousPageDocs = await getDocs(previousPageQuery);
-      console.log(`Previous page query returned ${previousPageDocs.docs.length} docs`);
+    // If cursor is provided, use startAfter for pagination
+    if (cursor) {
+      console.log(`🔥 FIREBASE READS: Getting cursor document for pagination - this will cost 1 read`);
+      readCount += 1;
       
-      if (previousPageDocs.docs.length === 0) {
-        console.log("⚠️ Warning: Previous page has no documents, returning empty result");
-        return { products: [], total };
+      const { doc, getDoc } = await import("firebase/firestore");
+      const lastDocSnap = await getDoc(doc(db, "products", cursor));
+      
+      console.log(`🔥 FIREBASE READS: Cursor document fetch completed. Total reads so far: ${readCount}`);
+      
+      if (!lastDocSnap.exists()) {
+        console.log(`Cursor document with ID ${cursor} does not exist, returning empty result`);
+        console.log(`🔥 FIREBASE READS FINAL: Total reads for this call: ${readCount}`);
+        return { products: [], total: 0, lastDocId: null };
       }
-      
-      const lastVisibleDoc = previousPageDocs.docs[previousPageDocs.docs.length - 1];
-      console.log(`Got last visible doc with ID: ${lastVisibleDoc.id}`);
-      
-      // Apply startAfter to the query
       productsQuery = query(
         productsRef,
-        startAfter(lastVisibleDoc),
-        limit(productsPerPage)
+        startAfter(lastDocSnap),
+        limit(productsPerPage + 1)
       );
-      console.log("Created pagination query with startAfter");
+      console.log("Created pagination query with cursor");
     }
 
     // Execute query
-    console.log("Executing query...");
+    console.log(`🔥 FIREBASE READS: About to execute main query for ${productsPerPage + 1} documents`);
+    readCount += (productsPerPage + 1);
+    
     const querySnapshot = await getDocs(productsQuery);
-    console.log(`Query returned ${querySnapshot.docs.length} documents`);
+    
+    console.log(`🔥 FIREBASE READS: Main query completed. Expected reads: ${productsPerPage + 1}, Actual docs returned: ${querySnapshot.docs.length}`);
+    console.log(`🔥 FIREBASE READS: Total reads for this call: ${readCount}`);
+    
+    // Check if there are more documents than requested
+    const hasNextPage = querySnapshot.docs.length > productsPerPage;
+    const documents = hasNextPage ? querySnapshot.docs.slice(0, productsPerPage) : querySnapshot.docs;
+    
+    console.log(`🔥 FIREBASE READS: Returning ${documents.length} products, hasNextPage: ${hasNextPage}`);
     
     // Map documents to Product objects
-    const products: Product[] = querySnapshot.docs.map(doc => {
+    const products: Product[] = documents.map(doc => {
       const data = doc.data();
       const mapped = {
         id: doc.id,
@@ -194,15 +141,21 @@ export async function getProducts(page = 1, productsPerPage = 20): Promise<Produ
         volumePrice: data["容量・参考価格"] || data.volumePrice || "",
         reviewCount: data["口コミ件数"] || data.reviewCount || "",
       };
-      console.log(`Mapped product: ${mapped.id} - ${mapped.productName}`);
       return mapped;
     });
 
-    console.log(`Retrieved ${products.length} products for page ${page}:`, products);
-    return { products, total };
+    console.log(`Retrieved ${products.length} products`);
+    // Get the last document ID for pagination
+    const lastDocId = documents.length > 0 ? documents[documents.length - 1].id : null;
+    
+    console.log(`🔥 FIREBASE READS FINAL: Total reads for this getProducts call: ${readCount}`);
+    console.log(`🔥 FIREBASE READS BREAKDOWN: ${cursor ? '1 (cursor) + ' : ''}${productsPerPage + 1} (main query) = ${readCount}`);
+    
+    // Return unknown total since we're not counting all documents
+    return { products, total: -1, lastDocId }; // -1 indicates unknown total
   } catch (error) {
     console.error("Error fetching products from Firestore:", error);
-    // Log more details about the error
+    console.log(`🔥 FIREBASE READS ERROR: Total reads before error: ${readCount}`);
     if (error instanceof Error) {
       console.error(`Error name: ${error.name}`);
       console.error(`Error message: ${error.message}`);

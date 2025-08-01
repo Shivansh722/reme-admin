@@ -112,26 +112,23 @@ export default function ProductsPage() {
                       onChange={e => setSearch(e.target.value)}
                     />
                   </div>
-                  <div className="flex items-center gap-2 mb-4">
-
-                    <input
-                      type="file"
-                      accept=".csv"
-                      id="csv-upload"
-                      style={{ display: "none" }}
-                      ref={fileInputRef}
-                      onChange={handleCsvImport}
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-1"
-                    >
-                      <Upload className="h-4 w-4" />
-                      CSVインポート
-                    </Button>
-                  </div>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    id="csv-upload"
+                    style={{ display: "none" }}
+                    ref={fileInputRef}
+                    onChange={handleCsvImport}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1"
+                  >
+                    <Upload className="h-4 w-4" />
+                    CSVインポート
+                  </Button>
                   <Button onClick={() => setAddOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     商品追加
